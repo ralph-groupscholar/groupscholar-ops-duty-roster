@@ -5,6 +5,8 @@ GroupScholar Ops Duty Roster is a PostgreSQL-first schema and query set for mana
 ## Features
 - Structured tables for staff, shifts, assignments, coverage issues, and handoff notes
 - Coverage gap and staff load views for fast weekly audits
+- Staff unavailability tracking and conflict detection for coverage planning
+- Weekly capacity utilization view for over-capacity alerts
 - Seed data for realistic February 2026 duty planning scenarios
 - Simple SQL-based tests to validate integrity assumptions
 

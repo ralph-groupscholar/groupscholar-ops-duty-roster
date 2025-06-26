@@ -37,3 +37,17 @@ BEGIN
     RAISE EXCEPTION 'Expected coverage issues in seed data';
   END IF;
 END $$;
+
+DO $$
+BEGIN
+  IF (SELECT COUNT(*) FROM staff_unavailability) < 3 THEN
+    RAISE EXCEPTION 'Expected staff unavailability rows';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF (SELECT COUNT(*) FROM assignment_unavailability_conflicts) < 1 THEN
+    RAISE EXCEPTION 'Expected assignment conflicts with unavailability';
+  END IF;
+END $$;

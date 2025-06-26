@@ -14,6 +14,19 @@ CREATE TABLE IF NOT EXISTS staff (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS staff_unavailability (
+  unavailability_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  staff_id uuid NOT NULL REFERENCES staff(staff_id) ON DELETE CASCADE,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  reason text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (end_date >= start_date)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS staff_unavailability_unique
+  ON staff_unavailability(staff_id, start_date, end_date, reason);
+
 CREATE TABLE IF NOT EXISTS duty_shift (
   shift_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   shift_date date NOT NULL,
@@ -107,6 +120,54 @@ FROM staff st
 LEFT JOIN shift_assignment sa ON sa.staff_id = st.staff_id
 LEFT JOIN duty_shift ds ON ds.shift_id = sa.shift_id
 GROUP BY st.staff_id, st.full_name, st.role_title, st.timezone, st.weekly_capacity;
+
+CREATE OR REPLACE VIEW weekly_capacity_utilization AS
+SELECT
+  st.staff_id,
+  st.full_name,
+  DATE_TRUNC('week', ds.shift_date)::date AS week_start,
+  COUNT(sa.assignment_id) FILTER (
+    WHERE sa.status IN ('assigned', 'confirmed', 'completed')
+  ) AS assignments,
+  st.weekly_capacity,
+  COUNT(sa.assignment_id) FILTER (
+    WHERE sa.status IN ('assigned', 'confirmed', 'completed')
+  ) - st.weekly_capacity AS capacity_overage,
+  ROUND(
+    COUNT(sa.assignment_id) FILTER (
+      WHERE sa.status IN ('assigned', 'confirmed', 'completed')
+    )::numeric / NULLIF(st.weekly_capacity, 0),
+    2
+  ) AS utilization_ratio,
+  COUNT(sa.assignment_id) FILTER (
+    WHERE sa.status IN ('assigned', 'confirmed', 'completed')
+  ) > st.weekly_capacity AS over_capacity
+FROM staff st
+LEFT JOIN shift_assignment sa ON sa.staff_id = st.staff_id
+LEFT JOIN duty_shift ds ON ds.shift_id = sa.shift_id
+WHERE st.active = true
+  AND ds.shift_date >= CURRENT_DATE
+  AND ds.shift_date < CURRENT_DATE + 14
+GROUP BY st.staff_id, st.full_name, st.weekly_capacity, DATE_TRUNC('week', ds.shift_date);
+
+CREATE OR REPLACE VIEW assignment_unavailability_conflicts AS
+SELECT
+  st.full_name,
+  ds.shift_date,
+  ds.start_time,
+  ds.end_time,
+  ds.region,
+  ds.shift_type,
+  su.start_date AS unavailability_start,
+  su.end_date AS unavailability_end,
+  su.reason,
+  sa.status
+FROM shift_assignment sa
+JOIN duty_shift ds ON ds.shift_id = sa.shift_id
+JOIN staff st ON st.staff_id = sa.staff_id
+JOIN staff_unavailability su ON su.staff_id = st.staff_id
+WHERE ds.shift_date BETWEEN su.start_date AND su.end_date
+  AND sa.status IN ('assigned', 'confirmed');
 
 CREATE OR REPLACE VIEW duty_calendar AS
 SELECT

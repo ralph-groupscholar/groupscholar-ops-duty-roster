@@ -9,6 +9,24 @@ VALUES
   ('Quinn Brooks', 'Operations Analyst', 'America/New_York', true, '2025-05-03', 2)
 ON CONFLICT (full_name) DO NOTHING;
 
+INSERT INTO staff_unavailability (staff_id, start_date, end_date, reason)
+SELECT staff_id, '2026-02-12', '2026-02-13', 'PTO - conference travel'
+FROM staff
+WHERE full_name = 'Nia Patel'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff_unavailability (staff_id, start_date, end_date, reason)
+SELECT staff_id, '2026-02-10', '2026-02-10', 'Medical appointment'
+FROM staff
+WHERE full_name = 'Maya Chen'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff_unavailability (staff_id, start_date, end_date, reason)
+SELECT staff_id, '2026-02-11', '2026-02-11', 'Training day'
+FROM staff
+WHERE full_name = 'Quinn Brooks'
+ON CONFLICT DO NOTHING;
+
 INSERT INTO duty_shift (shift_date, start_time, end_time, region, shift_type, required_staff, notes)
 VALUES
   ('2026-02-09', '08:00', '12:00', 'US-East', 'primary', 1, 'Weekly kickoff coverage'),
@@ -104,3 +122,13 @@ WHERE ds.shift_date = '2026-02-11'
     WHERE hn.shift_id = ds.shift_id
       AND hn.note_body LIKE 'Escalations likely%'
   );
+
+INSERT INTO shift_assignment (shift_id, staff_id, status, confirmed_at)
+SELECT ds.shift_id, st.staff_id, 'confirmed', now()
+FROM duty_shift ds
+JOIN staff st ON st.full_name = 'Nia Patel'
+WHERE ds.shift_date = '2026-02-12'
+  AND ds.start_time = '13:00'
+  AND ds.region = 'US-West'
+  AND ds.shift_type = 'secondary'
+ON CONFLICT DO NOTHING;
