@@ -72,6 +72,19 @@ CREATE TABLE IF NOT EXISTS handoff_note (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS shift_swap_request (
+  swap_request_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  shift_id uuid NOT NULL REFERENCES duty_shift(shift_id) ON DELETE CASCADE,
+  requester_staff_id uuid NOT NULL REFERENCES staff(staff_id),
+  proposed_staff_id uuid REFERENCES staff(staff_id),
+  status text NOT NULL CHECK (status IN ('pending', 'approved', 'declined', 'cancelled')),
+  reason text NOT NULL,
+  requested_at timestamptz NOT NULL DEFAULT now(),
+  responded_at timestamptz,
+  notes text,
+  UNIQUE (shift_id, requester_staff_id, status)
+);
+
 CREATE OR REPLACE VIEW shift_coverage_status AS
 SELECT
   s.shift_id,
@@ -182,3 +195,41 @@ FROM duty_shift ds
 LEFT JOIN shift_assignment sa ON sa.shift_id = ds.shift_id
 LEFT JOIN staff st ON st.staff_id = sa.staff_id
 ORDER BY ds.shift_date, ds.start_time, st.full_name;
+
+CREATE OR REPLACE VIEW swap_request_queue AS
+SELECT
+  sr.swap_request_id,
+  ds.shift_date,
+  ds.start_time,
+  ds.end_time,
+  ds.region,
+  ds.shift_type,
+  requester.full_name AS requester_name,
+  proposed.full_name AS proposed_name,
+  sr.status,
+  sr.reason,
+  sr.requested_at,
+  sr.responded_at
+FROM shift_swap_request sr
+JOIN duty_shift ds ON ds.shift_id = sr.shift_id
+JOIN staff requester ON requester.staff_id = sr.requester_staff_id
+LEFT JOIN staff proposed ON proposed.staff_id = sr.proposed_staff_id;
+
+CREATE OR REPLACE VIEW pending_swap_impact AS
+SELECT
+  ds.shift_id,
+  ds.shift_date,
+  ds.start_time,
+  ds.end_time,
+  ds.region,
+  ds.shift_type,
+  requester.full_name AS requester_name,
+  sr.requested_at,
+  scs.required_staff,
+  scs.active_assignments,
+  scs.open_slots
+FROM shift_swap_request sr
+JOIN duty_shift ds ON ds.shift_id = sr.shift_id
+JOIN staff requester ON requester.staff_id = sr.requester_staff_id
+JOIN shift_coverage_status scs ON scs.shift_id = ds.shift_id
+WHERE sr.status = 'pending';

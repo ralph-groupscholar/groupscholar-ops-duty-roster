@@ -51,3 +51,10 @@ BEGIN
     RAISE EXCEPTION 'Expected assignment conflicts with unavailability';
   END IF;
 END $$;
+
+DO $$
+BEGIN
+  IF (SELECT COUNT(*) FROM swap_request_queue WHERE status = 'pending') < 1 THEN
+    RAISE EXCEPTION 'Expected at least one pending swap request';
+  END IF;
+END $$;

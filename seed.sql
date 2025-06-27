@@ -91,6 +91,17 @@ WHERE ds.shift_date = '2026-02-11'
   AND ds.shift_type = 'primary'
 ON CONFLICT DO NOTHING;
 
+INSERT INTO shift_swap_request (shift_id, requester_staff_id, proposed_staff_id, status, reason, notes)
+SELECT ds.shift_id, requester.staff_id, proposed.staff_id, 'pending', 'Overlapping cohort visit', 'Prefer swap by end of week'
+FROM duty_shift ds
+JOIN staff requester ON requester.full_name = 'Maya Chen'
+JOIN staff proposed ON proposed.full_name = 'Rafael Ortiz'
+WHERE ds.shift_date = '2026-02-10'
+  AND ds.start_time = '09:00'
+  AND ds.region = 'US-Central'
+  AND ds.shift_type = 'primary'
+ON CONFLICT DO NOTHING;
+
 INSERT INTO coverage_issue (shift_id, issue_type, severity, description, resolved)
 SELECT ds.shift_id, 'unfilled', 4, 'Coverage gap detected 48 hours before shift', false
 FROM duty_shift ds

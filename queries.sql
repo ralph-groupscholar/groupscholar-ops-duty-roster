@@ -25,6 +25,17 @@ SELECT shift_date, start_time, end_time, region, shift_type, full_name, status
 FROM duty_calendar
 ORDER BY shift_date, start_time, full_name;
 
+-- Pending swap requests and coverage context
+SELECT shift_date, start_time, end_time, region, shift_type, requester_name, proposed_name, status, reason, requested_at
+FROM swap_request_queue
+WHERE status = 'pending'
+ORDER BY shift_date, start_time, requester_name;
+
+-- Pending swap impact on coverage
+SELECT shift_date, start_time, end_time, region, shift_type, requester_name, required_staff, active_assignments, open_slots
+FROM pending_swap_impact
+ORDER BY shift_date, start_time, requester_name;
+
 -- Unresolved coverage issues
 SELECT ds.shift_date, ds.region, ci.issue_type, ci.severity, ci.description
 FROM coverage_issue ci
